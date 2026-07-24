@@ -13,4 +13,6 @@ UCLASS(Abstract)
 class GMTK26_API AGMTKGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
+
+	AGMTKGameMode();
 };
