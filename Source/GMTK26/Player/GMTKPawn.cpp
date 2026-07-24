@@ -3,11 +3,8 @@
 #include "GMTKPawn.h"
 
 #include "Camera/PlayerCameraManager.h"
-#include "Components/SphereComponent.h"
-#include "Components/StaticMeshComponent.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "Engine/CollisionProfile.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/PlayerController.h"
@@ -15,28 +12,12 @@
 
 AGMTKPawn::AGMTKPawn()
 {
-	PrimaryActorTick.bCanEverTick = false;
-
-	CollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("CollisionComponent"));
-	CollisionComponent->SetCollisionProfileName(UCollisionProfile::Pawn_ProfileName);
-	SetRootComponent(CollisionComponent);
-
-	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
-	MeshComponent->SetupAttachment(CollisionComponent);
-	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-	MovementComponent = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("MovementComponent"));
-	MovementComponent->UpdatedComponent = CollisionComponent;
 	MovementComponent->MaxSpeed = 900.0f;
 	MovementComponent->Acceleration = 4000.0f;
 	MovementComponent->Deceleration = 4000.0f;
 
 	MovementComponent->SetPlaneConstraintNormal(FVector::UpVector);
 	MovementComponent->SetPlaneConstraintEnabled(true);
-
-	bUseControllerRotationPitch = false;
-	bUseControllerRotationYaw = false;
-	bUseControllerRotationRoll = false;
 }
 
 void AGMTKPawn::BeginPlay()
