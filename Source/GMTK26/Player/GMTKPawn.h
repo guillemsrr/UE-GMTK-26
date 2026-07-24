@@ -6,23 +6,42 @@
 #include "GameFramework/Pawn.h"
 #include "GMTKPawn.generated.h"
 
-UCLASS()
+class UCameraComponent;
+class UFloatingPawnMovement;
+class UInputAction;
+class UInputMappingContext;
+class USphereComponent;
+class USpringArmComponent;
+class UStaticMeshComponent;
+struct FInputActionValue;
+
+UCLASS(Abstract)
 class GMTK26_API AGMTKPawn : public APawn
 {
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this pawn's properties
 	AGMTKPawn();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	virtual void NotifyControllerChanged() override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
-public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<USphereComponent> CollisionComponent;
 
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UStaticMeshComponent> MeshComponent;
+
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UFloatingPawnMovement> MovementComponent;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UInputMappingContext> MappingContext;
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UInputAction> MoveAction;
+
+	virtual void Move(const FInputActionValue& Value);
 };

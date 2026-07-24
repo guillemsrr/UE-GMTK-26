@@ -9,7 +9,7 @@
 /**
  * 
  */
-UCLASS()
+UCLASS(Abstract)
 class GMTK26_API AGMTKPlayerController : public APlayerController
 {
 	GENERATED_BODY()
