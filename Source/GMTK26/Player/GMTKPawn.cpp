@@ -3,6 +3,8 @@
 #include "GMTKPawn.h"
 
 #include "Abilities/GMTKAbility_Attack.h"
+#include "Abilities/GMTKAbility_Interact.h"
+#include "Gameplay/Locker.h"
 #include "AbilitySystemComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "EnhancedInputComponent.h"
@@ -26,6 +28,7 @@ AGMTKPawn::AGMTKPawn()
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
 
 	DefaultAbilities.Add(UGMTKAbility_Attack::StaticClass());
+	DefaultAbilities.Add(UGMTKAbility_Interact::StaticClass());
 }
 
 void AGMTKPawn::BeginPlay()
@@ -40,11 +43,6 @@ void AGMTKPawn::BeginPlay()
 	{
 		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(Ability));
 	}
-}
-
-UAbilitySystemComponent* AGMTKPawn::GetAbilitySystemComponent() const
-{
-	return AbilitySystemComponent;
 }
 
 void AGMTKPawn::NotifyControllerChanged()
@@ -62,6 +60,78 @@ void AGMTKPawn::NotifyControllerChanged()
 	{
 		Subsystem->AddMappingContext(MappingContext, 0);
 	}
+}
+
+void AGMTKPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+	if (!EnhancedInput)
+	{
+		return;
+	}
+
+	if (MoveAction)
+	{
+		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AGMTKPawn::Move);
+	}
+
+	if (AttackAction)
+	{
+		EnhancedInput->BindAction(AttackAction, ETriggerEvent::Started, this, &AGMTKPawn::Attack);
+	}
+
+	if (InteractAction)
+	{
+		EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &AGMTKPawn::Interact);
+	}
+}
+
+UAbilitySystemComponent* AGMTKPawn::GetAbilitySystemComponent() const
+{
+	return AbilitySystemComponent;
+}
+
+void AGMTKPawn::AddMinion(AMinionLife* Minion)
+{
+	Minions.Add(Minion);
+	RefreshOrbitSlots();
+}
+
+bool AGMTKPawn::SendMinionToLocker(ALocker* Locker)
+{
+	if (Minions.IsEmpty())
+	{
+		return false;
+	}
+
+	const int32 SocketIndex = Locker->ClaimSocket();
+	if (SocketIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	const FVector SocketLocation = Locker->GetSocketLocation(SocketIndex);
+	int32 NearestIndex = 0;
+	float NearestDistanceSquared = TNumericLimits<float>::Max();
+	for (int32 Index = 0; Index < Minions.Num(); ++Index)
+	{
+		const float DistanceSquared = FVector::DistSquared(SocketLocation, Minions[Index]->GetActorLocation());
+		if (DistanceSquared < NearestDistanceSquared)
+		{
+			NearestIndex = Index;
+			NearestDistanceSquared = DistanceSquared;
+		}
+	}
+
+	AMinionLife* Minion = Minions[NearestIndex];
+	Minions.RemoveAt(NearestIndex);
+	RefreshOrbitSlots();
+
+	Minion->DeployToSocket(Locker, SocketIndex);
+
+	return true;
 }
 
 void AGMTKPawn::Move(const FInputActionValue& Value)
@@ -86,35 +156,18 @@ void AGMTKPawn::Attack()
 	AbilitySystemComponent->TryActivateAbilitiesByTag(FGameplayTagContainer(GMTKGameplayTags::Ability_Attack.GetTag()));
 }
 
-void AGMTKPawn::AddMinion(AMinionLife* Minion)
+void AGMTKPawn::Interact()
 {
-	Minions.Add(Minion);
+	AbilitySystemComponent->TryActivateAbilitiesByTag(
+		FGameplayTagContainer(GMTKGameplayTags::Ability_Interact.GetTag()));
+}
 
-	int32 NumberMinions = Minions.Num();
+void AGMTKPawn::RefreshOrbitSlots()
+{
+	const int32 NumberMinions = Minions.Num();
 	for (int32 Index = 0; Index < NumberMinions; ++Index)
 	{
 		Minions[Index]->SetFollowTarget(this);
 		Minions[Index]->SetOrbitSlot(Index, NumberMinions);
-	}
-}
-
-void AGMTKPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
-
-	UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
-	if (!EnhancedInput)
-	{
-		return;
-	}
-
-	if (MoveAction)
-	{
-		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AGMTKPawn::Move);
-	}
-
-	if (AttackAction)
-	{
-		EnhancedInput->BindAction(AttackAction, ETriggerEvent::Started, this, &AGMTKPawn::Attack);
 	}
 }

@@ -7,6 +7,8 @@
 
 #include "MinionLife.generated.h"
 
+class ALocker;
+
 UCLASS(Abstract)
 class GMTK26_API AMinionLife : public AGMTKPawnBase
 {
@@ -20,6 +22,9 @@ protected:
 public:
 	void SetFollowTarget(AActor* NewTarget);
 	void SetOrbitSlot(int32 SlotIndex, int32 SlotCount);
+
+	// Leaves the orbit for good and flies to the socket it was promised, which then consumes it.
+	void DeployToSocket(ALocker* Locker, int32 SocketIndex);
 
 protected:
 	UPROPERTY(EditAnywhere)
@@ -46,5 +51,13 @@ protected:
 private:
 	float OrbitAngle = 0.0f;
 
+	UPROPERTY()
+	TObjectPtr<ALocker> DeployLocker;
+
+	int32 DeploySocketIndex = INDEX_NONE;
+
 	FVector GetSlotLocation() const;
+
+	// Steers toward Destination and reports whether it has arrived.
+	bool SteerTo(const FVector& Destination);
 };

@@ -23,25 +23,6 @@ void AGMTKPlayerCameraManager::InitializeFor(APlayerController* PC)
 	UseCamera(World->SpawnActor<ACameraActor>(CameraActorClass, FTransform::Identity, SpawnParameters));
 }
 
-void AGMTKPlayerCameraManager::UseCamera(ACameraActor* NewCamera)
-{
-	if (CameraActor == NewCamera)
-	{
-		return;
-	}
-
-	if (CameraActor)
-	{
-		CameraActor->Destroy();
-	}
-
-	CameraActor = NewCamera;
-
-	UCameraComponent* Camera = CameraActor->GetCameraComponent();
-	ViewRotation = Camera->GetComponentRotation();
-	Camera->SetRelativeRotation(FRotator::ZeroRotator);
-}
-
 void AGMTKPlayerCameraManager::UpdateViewTargetInternal(FTViewTarget& OutVT, float DeltaTime)
 {
 	if (!CameraActor || !OutVT.Target)
@@ -66,4 +47,23 @@ void AGMTKPlayerCameraManager::UpdateViewTargetInternal(FTViewTarget& OutVT, flo
 	const FRotator TiltedRotation(ViewRotation.Pitch + Tilt.X, ViewRotation.Yaw, ViewRotation.Roll + Tilt.Y);
 	CameraActor->SetActorLocationAndRotation(PivotLocation - TiltedRotation.Vector() * ViewDistance, TiltedRotation);
 	CameraActor->GetCameraComponent()->GetCameraView(DeltaTime, OutVT.POV);
+}
+
+void AGMTKPlayerCameraManager::UseCamera(ACameraActor* NewCamera)
+{
+	if (CameraActor == NewCamera)
+	{
+		return;
+	}
+
+	if (CameraActor)
+	{
+		CameraActor->Destroy();
+	}
+
+	CameraActor = NewCamera;
+
+	UCameraComponent* Camera = CameraActor->GetCameraComponent();
+	ViewRotation = Camera->GetComponentRotation();
+	Camera->SetRelativeRotation(FRotator::ZeroRotator);
 }

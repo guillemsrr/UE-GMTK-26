@@ -18,7 +18,10 @@ class GMTK26_API AChest : public AActor
 public:
 	AChest();
 
-	bool IsOpen() const { return bIsOpen; }
+	bool IsOpen() const
+	{
+		return bIsOpen;
+	}
 
 	// Spawns the starting minions in a ring around the chest and hands them to the opener. Only pays out once.
 	void Open(AActor* Opener);

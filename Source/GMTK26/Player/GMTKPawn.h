@@ -8,6 +8,7 @@
 
 #include "GMTKPawn.generated.h"
 
+class ALocker;
 class AMinionLife;
 class UAbilitySystemComponent;
 class UGameplayAbility;
@@ -31,6 +32,10 @@ public:
 
 	void AddMinion(AMinionLife* Minion);
 
+	// Spends the minion closest to the locker on one of its sockets. False when the player has none
+	// to spare or the locker is already fully claimed.
+	bool SendMinionToLocker(ALocker* Locker);
+
 protected:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
@@ -47,10 +52,16 @@ protected:
 	UPROPERTY(EditDefaultsOnly)
 	TObjectPtr<UInputAction> AttackAction;
 
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UInputAction> InteractAction;
+
 	virtual void Move(const FInputActionValue& Value);
 	virtual void Attack();
+	virtual void Interact();
 
 private:
 	UPROPERTY()
 	TArray<TObjectPtr<AMinionLife>> Minions;
+
+	void RefreshOrbitSlots();
 };

@@ -6,20 +6,30 @@
 #include "GameFramework/Actor.h"
 #include "Door.generated.h"
 
-UCLASS()
+class ALocker;
+class UStaticMeshComponent;
+
+UCLASS(Abstract)
 class GMTK26_API ADoor : public AActor
 {
 	GENERATED_BODY()
 
-public:
-	// Sets default values for this actor's properties
-	ADoor();
-
 protected:
-	// Called when the game starts or when spawned
+	ADoor();
 	virtual void BeginPlay() override;
 
 public:
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	ALocker* GetLocker() const
+	{
+		return Locker;
+	}
+
+	void Open();
+
+protected:
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UStaticMeshComponent> MeshComponent;
+
+	UPROPERTY(EditInstanceOnly)
+	TObjectPtr<ALocker> Locker;
 };

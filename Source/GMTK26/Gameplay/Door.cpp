@@ -2,23 +2,38 @@
 
 #include "Door.h"
 
-// Sets default values
+#include "Components/StaticMeshComponent.h"
+#include "Locker.h"
+
 ADoor::ADoor()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
+
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+	SetRootComponent(MeshComponent);
 }
 
-// Called when the game starts or when spawned
 void ADoor::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
+	if (!Locker)
+	{
+		return;
+	}
+
+	// The locker pushes the result back rather than the door polling it every frame.
+	Locker->SetDoor(this);
+
+	if (Locker->IsUnlocked())
+	{
+		Open();
+	}
 }
 
-// Called every frame
-void ADoor::Tick(float DeltaTime)
+void ADoor::Open()
 {
-	Super::Tick(DeltaTime);
+	// Placeholder for the real opening: the hole in the wall is simply no longer there.
+	SetActorHiddenInGame(true);
+	SetActorEnableCollision(false);
 }
-

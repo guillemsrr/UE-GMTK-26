@@ -4,6 +4,7 @@
 
 #include "AIController.h"
 #include "Components/SphereComponent.h"
+#include "Gameplay/Locker.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -45,27 +46,24 @@ void AMinionLife::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (DeployLocker)
+	{
+		if (SteerTo(DeployLocker->GetSocketLocation(DeploySocketIndex)))
+		{
+			ALocker* Locker = DeployLocker;
+			DeployLocker = nullptr;
+			Locker->InsertMinion(this, DeploySocketIndex);
+		}
+		return;
+	}
+
 	if (!FollowTarget)
 	{
 		return;
 	}
 
 	OrbitAngle = FRotator::ClampAxis(OrbitAngle + OrbitAngularSpeed * DeltaTime);
-
-	const FVector ToSlot = GetSlotLocation() - GetActorLocation();
-	const float Distance = ToSlot.Size();
-	if (Distance <= ArrivalRadius)
-	{
-		return;
-	}
-
-	AddMovementInput(ToSlot / Distance, FMath::Min(Distance / BrakingDistance, 1.0f));
-}
-
-FVector AMinionLife::GetSlotLocation() const
-{
-	const FVector Offset = FRotator(0.0f, OrbitAngle, 0.0f).RotateVector(FVector::ForwardVector) * OrbitRadius;
-	return FollowTarget->GetActorLocation() + Offset + FVector(0.0f, 0.0f, OrbitHeight);
+	SteerTo(GetSlotLocation());
 }
 
 void AMinionLife::SetFollowTarget(AActor* NewTarget)
@@ -76,4 +74,30 @@ void AMinionLife::SetFollowTarget(AActor* NewTarget)
 void AMinionLife::SetOrbitSlot(int32 SlotIndex, int32 SlotCount)
 {
 	OrbitAngle = SlotCount > 0 ? 360.0f * SlotIndex / SlotCount : 0.0f;
+}
+
+void AMinionLife::DeployToSocket(ALocker* Locker, int32 SocketIndex)
+{
+	DeployLocker = Locker;
+	DeploySocketIndex = SocketIndex;
+	FollowTarget = nullptr;
+}
+
+FVector AMinionLife::GetSlotLocation() const
+{
+	const FVector Offset = FRotator(0.0f, OrbitAngle, 0.0f).RotateVector(FVector::ForwardVector) * OrbitRadius;
+	return FollowTarget->GetActorLocation() + Offset + FVector(0.0f, 0.0f, OrbitHeight);
+}
+
+bool AMinionLife::SteerTo(const FVector& Destination)
+{
+	const FVector ToDestination = Destination - GetActorLocation();
+	const float Distance = ToDestination.Size();
+	if (Distance <= ArrivalRadius)
+	{
+		return true;
+	}
+
+	AddMovementInput(ToDestination / Distance, FMath::Min(Distance / BrakingDistance, 1.0f));
+	return false;
 }

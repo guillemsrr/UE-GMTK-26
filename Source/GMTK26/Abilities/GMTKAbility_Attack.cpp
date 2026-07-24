@@ -5,7 +5,6 @@
 #include "EngineUtils.h"
 #include "GMTKGameplayTags.h"
 #include "Gameplay/Chest.h"
-#include "Player/GMTKPawn.h"
 
 UGMTKAbility_Attack::UGMTKAbility_Attack()
 {
