@@ -2,23 +2,48 @@
 
 #include "Chest.h"
 
-// Sets default values
+#include "Components/StaticMeshComponent.h"
+
+#include "Engine/World.h"
+
+#include "Player/GMTKPawn.h"
+#include "Player/MinionLife.h"
+
 AChest::AChest()
 {
-	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
+
+	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+	SetRootComponent(MeshComponent);
 }
 
-// Called when the game starts or when spawned
-void AChest::BeginPlay()
+void AChest::Open(AActor* Opener)
 {
-	Super::BeginPlay();
-	
-}
+	if (bIsOpen || !MinionClass)
+	{
+		return;
+	}
 
-// Called every frame
-void AChest::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-}
+	bIsOpen = true;
 
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = Opener;
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	for (int32 Index = 0; Index < MinionCount; ++Index)
+	{
+		const FRotator SpawnYaw(0.0f, 360.0f * Index / MinionCount, 0.0f);
+		const FVector SpawnLocation = GetActorLocation() + SpawnYaw.RotateVector(FVector::ForwardVector) * SpawnRadius +
+		                              FVector(0.0f, 0.0f, SpawnHeight);
+
+		AMinionLife* Minion = GetWorld()->SpawnActor<AMinionLife>(MinionClass,
+		                                                          SpawnLocation,
+		                                                          SpawnYaw,
+		                                                          SpawnParameters);
+
+		if (AGMTKPawn* Pawn = Cast<AGMTKPawn>(Opener))
+		{
+			Pawn->AddMinion(Minion);
+		}
+	}
+}

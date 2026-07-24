@@ -11,18 +11,12 @@ AMinionLife::AMinionLife()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	// UFloatingPawnMovement only consumes input while the pawn has a local controller, so an unpossessed minion
-	// never moves no matter what AddMovementInput is fed. A plain AIController is enough, and it is what a
-	// deployed minion will need anyway once it paths to a target on its own.
 	AIControllerClass = AAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 
 	CollisionComponent->SetSphereRadius(24.0f);
-	// Pass through the player, enemies and each other: a minion should never shove a pawn around, and contact
-	// damage will read these overlaps later.
 	CollisionComponent->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
 
-	// Faster than the player, otherwise a trailing minion can never close the gap.
 	MovementComponent->MaxSpeed = 1400.0f;
 	MovementComponent->Acceleration = 6000.0f;
 	MovementComponent->Deceleration = 6000.0f;
@@ -39,8 +33,6 @@ void AMinionLife::BeginPlay()
 
 	if (FollowTarget)
 	{
-		// Seed the orbit from where the minion was placed or spawned so it eases onto its slot instead of
-		// swinging around the target first. SetOrbitSlot overrides this once the player owns a set of minions.
 		const FVector Offset = GetActorLocation() - FollowTarget->GetActorLocation();
 		if (!Offset.IsNearlyZero())
 		{
