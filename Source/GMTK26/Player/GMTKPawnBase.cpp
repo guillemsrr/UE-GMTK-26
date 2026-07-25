@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "GameFramework/FloatingPawnMovement.h"
+#include "Rendering/GMTKNeonComponent.h"
 
 AGMTKPawnBase::AGMTKPawnBase()
 {
@@ -22,7 +23,19 @@ AGMTKPawnBase::AGMTKPawnBase()
 	MovementComponent = CreateDefaultSubobject<UFloatingPawnMovement>(TEXT("MovementComponent"));
 	MovementComponent->UpdatedComponent = CollisionComponent;
 
+	NeonLightComponent = CreateDefaultSubobject<UGMTKNeonComponent>(TEXT("NeonLightComponent"));
+	NeonLightComponent->SetupAttachment(CollisionComponent);
+	NeonLightComponent->SetIntensity(2600.0f);
+	NeonLightComponent->SetAttenuationRadius(650.0f);
+
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
+}
+
+void AGMTKPawnBase::BeginPlay()
+{
+	Super::BeginPlay();
+
+	NeonLightComponent->ApplyTo(MeshComponent);
 }

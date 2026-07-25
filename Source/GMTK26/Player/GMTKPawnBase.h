@@ -7,6 +7,7 @@
 #include "GMTKPawnBase.generated.h"
 
 class UFloatingPawnMovement;
+class UGMTKNeonComponent;
 class USphereComponent;
 class UStaticMeshComponent;
 
@@ -17,6 +18,7 @@ class GMTK26_API AGMTKPawnBase : public APawn
 
 protected:
 	AGMTKPawnBase();
+	virtual void BeginPlay() override;
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<USphereComponent> CollisionComponent;
@@ -26,4 +28,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UFloatingPawnMovement> MovementComponent;
+
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UGMTKNeonComponent> NeonLightComponent;
 };
