@@ -2,22 +2,34 @@
 
 #include "GMTKPawn.h"
 
-#include "Abilities/GMTKAbility_Attack.h"
-#include "Abilities/GMTKAbility_Interact.h"
-#include "Gameplay/Locker.h"
+#include "Abilities/GMTKAbility_Deploy.h"
+#include "Abilities/GMTKAbility_Retrieve.h"
+#include "Core/GMTKGameMode.h"
 #include "AbilitySystemComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
+#include "EngineUtils.h"
 #include "GameFramework/FloatingPawnMovement.h"
 #include "GameFramework/PlayerController.h"
+#include "Gameplay/Locker.h"
 #include "GMTKGameplayTags.h"
 #include "InputActionValue.h"
+#include "MinionComponent.h"
 #include "MinionLife.h"
+#include "Rendering/GMTKNeonComponent.h"
+#include "TimerManager.h"
+
+#include "Engine/World.h"
 
 AGMTKPawn::AGMTKPawn()
 {
+	PrimaryActorTick.bCanEverTick = true;
+
+	NeonLightComponent->SetIntensity(3600.0f);
+	NeonLightComponent->SetAttenuationRadius(800.0f);
+
 	MovementComponent->MaxSpeed = 900.0f;
 	MovementComponent->Acceleration = 4000.0f;
 	MovementComponent->Deceleration = 4000.0f;
@@ -26,9 +38,10 @@ AGMTKPawn::AGMTKPawn()
 	MovementComponent->SetPlaneConstraintEnabled(true);
 
 	AbilitySystemComponent = CreateDefaultSubobject<UAbilitySystemComponent>(TEXT("AbilitySystemComponent"));
+	MinionComponent = CreateDefaultSubobject<UMinionComponent>(TEXT("MinionComponent"));
 
-	DefaultAbilities.Add(UGMTKAbility_Attack::StaticClass());
-	DefaultAbilities.Add(UGMTKAbility_Interact::StaticClass());
+	DefaultAbilities.Add(UGMTKAbility_Deploy::StaticClass());
+	DefaultAbilities.Add(UGMTKAbility_Retrieve::StaticClass());
 }
 
 void AGMTKPawn::BeginPlay()
@@ -38,11 +51,24 @@ void AGMTKPawn::BeginPlay()
 	MovementComponent->SetPlaneConstraintOrigin(GetActorLocation());
 
 	AbilitySystemComponent->InitAbilityActorInfo(this, this);
+	MinionComponent->Configure(MinionClass, FLinearColor(0.1f, 1.0f, 0.58f));
+	MinionComponent->OnMinionCountChanged.AddUObject(this, &AGMTKPawn::HandleMinionCountChanged);
+	MinionComponent->OnMinionsDepleted.AddUObject(this, &AGMTKPawn::HandleMinionsDepleted);
+	MinionComponent->OnDirectHit.AddUObject(this, &AGMTKPawn::HandleDirectHit);
 
 	for (const TSubclassOf<UGameplayAbility>& Ability : DefaultAbilities)
 	{
 		AbilitySystemComponent->GiveAbility(FGameplayAbilitySpec(Ability));
 	}
+
+	//MinionComponent->SpawnMinions(this, 1, 0.0f, 0.0f);
+}
+
+void AGMTKPawn::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	UpdateAimYaw();
 }
 
 void AGMTKPawn::NotifyControllerChanged()
@@ -77,14 +103,16 @@ void AGMTKPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 		EnhancedInput->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AGMTKPawn::Move);
 	}
 
-	if (AttackAction)
+	if (DeployAction)
 	{
-		EnhancedInput->BindAction(AttackAction, ETriggerEvent::Started, this, &AGMTKPawn::Attack);
+		EnhancedInput->BindAction(DeployAction, ETriggerEvent::Started, this, &AGMTKPawn::StartDeploying);
+		EnhancedInput->BindAction(DeployAction, ETriggerEvent::Completed, this, &AGMTKPawn::StopDeploying);
+		EnhancedInput->BindAction(DeployAction, ETriggerEvent::Canceled, this, &AGMTKPawn::StopDeploying);
 	}
 
-	if (InteractAction)
+	if (RetrieveAction)
 	{
-		EnhancedInput->BindAction(InteractAction, ETriggerEvent::Started, this, &AGMTKPawn::Interact);
+		EnhancedInput->BindAction(RetrieveAction, ETriggerEvent::Started, this, &AGMTKPawn::Retrieve);
 	}
 }
 
@@ -93,45 +121,24 @@ UAbilitySystemComponent* AGMTKPawn::GetAbilitySystemComponent() const
 	return AbilitySystemComponent;
 }
 
-void AGMTKPawn::AddMinion(AMinionLife* Minion)
+int32 AGMTKPawn::GetMinionCount() const
 {
-	Minions.Add(Minion);
-	RefreshOrbitSlots();
+	return MinionComponent->GetMinionCount();
 }
 
-bool AGMTKPawn::SendMinionToLocker(ALocker* Locker)
+bool AGMTKPawn::DeployMinion(const FVector& Location)
 {
-	if (Minions.IsEmpty())
+	return MinionComponent->DeployNearestTo(Location);
+}
+
+void AGMTKPawn::RetrieveMinions()
+{
+	MinionComponent->RecallMinions();
+
+	for (TActorIterator<ALocker> It(GetWorld()); It; ++It)
 	{
-		return false;
+		It->RetrieveMinion(this);
 	}
-
-	const int32 SocketIndex = Locker->ClaimSocket();
-	if (SocketIndex == INDEX_NONE)
-	{
-		return false;
-	}
-
-	const FVector SocketLocation = Locker->GetSocketLocation(SocketIndex);
-	int32 NearestIndex = 0;
-	float NearestDistanceSquared = TNumericLimits<float>::Max();
-	for (int32 Index = 0; Index < Minions.Num(); ++Index)
-	{
-		const float DistanceSquared = FVector::DistSquared(SocketLocation, Minions[Index]->GetActorLocation());
-		if (DistanceSquared < NearestDistanceSquared)
-		{
-			NearestIndex = Index;
-			NearestDistanceSquared = DistanceSquared;
-		}
-	}
-
-	AMinionLife* Minion = Minions[NearestIndex];
-	Minions.RemoveAt(NearestIndex);
-	RefreshOrbitSlots();
-
-	Minion->DeployToSocket(Locker, SocketIndex);
-
-	return true;
 }
 
 void AGMTKPawn::Move(const FInputActionValue& Value)
@@ -151,23 +158,66 @@ void AGMTKPawn::Move(const FInputActionValue& Value)
 	AddMovementInput(Direction.GetClampedToMaxSize(1.0f));
 }
 
-void AGMTKPawn::Attack()
+void AGMTKPawn::StartDeploying()
 {
-	AbilitySystemComponent->TryActivateAbilitiesByTag(FGameplayTagContainer(GMTKGameplayTags::Ability_Attack.GetTag()));
+	Deploy();
+
+	GetWorldTimerManager().SetTimer(DeployTimer, this, &AGMTKPawn::Deploy, DeployInterval, true);
 }
 
-void AGMTKPawn::Interact()
+void AGMTKPawn::StopDeploying()
+{
+	GetWorldTimerManager().ClearTimer(DeployTimer);
+}
+
+void AGMTKPawn::Retrieve()
 {
 	AbilitySystemComponent->TryActivateAbilitiesByTag(
-		FGameplayTagContainer(GMTKGameplayTags::Ability_Interact.GetTag()));
+		FGameplayTagContainer(GMTKGameplayTags::Ability_Retrieve.GetTag()));
 }
 
-void AGMTKPawn::RefreshOrbitSlots()
+void AGMTKPawn::Deploy()
 {
-	const int32 NumberMinions = Minions.Num();
-	for (int32 Index = 0; Index < NumberMinions; ++Index)
+	AbilitySystemComponent->TryActivateAbilitiesByTag(FGameplayTagContainer(GMTKGameplayTags::Ability_Deploy.GetTag()));
+}
+
+void AGMTKPawn::HandleMinionCountChanged(int32 MinionCount)
+{
+	const int32 SpeedRange = FMath::Max(1, MinionsForMaximumMovementSpeed - 1);
+	const float MinionRatio = FMath::Clamp(static_cast<float>(MinionCount - 1) / SpeedRange, 0.0f, 1.0f);
+	MovementComponent->MaxSpeed = FMath::Lerp(MinimumMovementSpeed, MaximumMovementSpeed, MinionRatio);
+}
+
+void AGMTKPawn::HandleMinionsDepleted()
+{
+	GetWorld()->GetAuthGameMode<AGMTKGameMode>()->EndGame(false);
+}
+
+void AGMTKPawn::HandleDirectHit()
+{
+	GetWorld()->GetAuthGameMode<AGMTKGameMode>()->EndGame(false);
+}
+
+void AGMTKPawn::UpdateAimYaw()
+{
+	const APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController)
 	{
-		Minions[Index]->SetFollowTarget(this);
-		Minions[Index]->SetOrbitSlot(Index, NumberMinions);
+		return;
 	}
+
+	FHitResult Hit;
+	if (!PlayerController->GetHitResultUnderCursor(ECC_Visibility, false, Hit))
+	{
+		return;
+	}
+
+	const FVector ToCursor = (Hit.ImpactPoint - GetActorLocation()) * FVector(1.0f, 1.0f, 0.0f);
+	if (ToCursor.IsNearlyZero())
+	{
+		return;
+	}
+
+	AimYaw = ToCursor.Rotation().Yaw;
+	MinionComponent->SetFormationYaw(AimYaw);
 }

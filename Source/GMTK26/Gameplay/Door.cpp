@@ -17,23 +17,52 @@ void ADoor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!Locker)
+	for (ALocker* Locker : Lockers)
 	{
+		if (Locker)
+		{
+			Locker->SetDoor(this);
+		}
+	}
+
+	TryOpen();
+}
+
+void ADoor::TryOpen()
+{
+	if (Lockers.IsEmpty())
+	{
+		Close();
 		return;
 	}
 
-	// The locker pushes the result back rather than the door polling it every frame.
-	Locker->SetDoor(this);
-
-	if (Locker->IsUnlocked())
+	for (const ALocker* Locker : Lockers)
 	{
-		Open();
+		if (!Locker || !Locker->IsFilled())
+		{
+			Close();
+			return;
+		}
 	}
+
+	Open();
+}
+
+bool ADoor::IsOnSameSide(const AActor* Actor, const FVector& ReferenceLocation) const
+{
+	const FVector2D ActorDirection(Actor->GetActorLocation() - GetActorLocation());
+	const FVector2D ReferenceDirection(ReferenceLocation - GetActorLocation());
+	return FVector2D::DotProduct(ActorDirection, ReferenceDirection) >= 0.0f;
 }
 
 void ADoor::Open()
 {
-	// Placeholder for the real opening: the hole in the wall is simply no longer there.
 	SetActorHiddenInGame(true);
 	SetActorEnableCollision(false);
+}
+
+void ADoor::Close()
+{
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
 }

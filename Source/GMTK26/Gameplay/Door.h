@@ -19,17 +19,17 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	ALocker* GetLocker() const
-	{
-		return Locker;
-	}
+	void TryOpen();
 
-	void Open();
+	bool IsOnSameSide(const AActor* Actor, const FVector& ReferenceLocation) const;
 
 protected:
+	void Open();
+	void Close();
+
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
 
 	UPROPERTY(EditInstanceOnly)
-	TObjectPtr<ALocker> Locker;
+	TArray<TObjectPtr<ALocker>> Lockers;
 };

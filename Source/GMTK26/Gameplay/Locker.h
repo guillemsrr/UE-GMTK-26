@@ -7,8 +7,10 @@
 #include "Locker.generated.h"
 
 class ADoor;
+class AGMTKPawn;
 class AMinionLife;
-class UStaticMesh;
+class UGMTKNeonComponent;
+class USceneComponent;
 class UStaticMeshComponent;
 
 UCLASS(Abstract)
@@ -21,28 +23,31 @@ protected:
 	virtual void BeginPlay() override;
 
 public:
-	bool IsUnlocked() const
+	bool IsFilled() const
 	{
-		return InsertedCount >= RequiredMinions;
+		return bFilled;
 	}
 
-	// Sockets nobody has been sent to yet. Claimed-but-unfilled sockets do not count, so two minions
-	// never race for the last one.
-	int32 GetFreeSocketCount() const
+	bool IsAvailable() const
 	{
-		return RequiredMinions - InsertedCount - ClaimedCount;
+		return !bFilled && !bClaimed;
 	}
 
-	// Reserves the next socket for an inbound minion and returns its index, or INDEX_NONE when full.
-	int32 ClaimSocket();
+	void Claim()
+	{
+		bClaimed = true;
+	}
 
-	// Hands a claim back when the minion never made it.
-	void ReleaseSocket();
+	void ReleaseClaim()
+	{
+		bClaimed = false;
+	}
 
-	FVector GetSocketLocation(int32 SocketIndex) const;
+	FVector GetSocketLocation() const;
 
-	// Consumes the minion: its sphere is removed from the countdown and the minion is spent for good.
-	void InsertMinion(AMinionLife* Minion, int32 SocketIndex);
+	void InsertMinion(AMinionLife* Minion);
+
+	bool RetrieveMinion(AGMTKPawn* Receiver);
 
 	void SetDoor(ADoor* InDoor)
 	{
@@ -51,32 +56,32 @@ public:
 
 protected:
 	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<USceneComponent> SceneRoot;
+
+	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
 
-	UPROPERTY(EditAnywhere)
-	int32 RequiredMinions = 3;
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UGMTKNeonComponent> NeonLightComponent;
 
 	UPROPERTY(EditAnywhere)
-	TObjectPtr<UStaticMesh> SocketSphereMesh;
+	int32 RewardMinionCount = 0;
 
 	UPROPERTY(EditAnywhere)
-	float SocketSphereScale = 0.15f;
+	float RewardSpawnRadius = 180.0f;
 
 	UPROPERTY(EditAnywhere)
-	float SocketSpacing = 70.0f;
-
-	// Measured from the actor origin, so it has to clear whatever mesh the locker wears.
-	UPROPERTY(EditAnywhere)
-	float SocketHeight = 200.0f;
+	float RewardSpawnHeight = 60.0f;
 
 private:
-	// One sphere per socket, indexed the same way. Entries go null as sockets are filled.
-	UPROPERTY()
-	TArray<TObjectPtr<UStaticMeshComponent>> SocketSpheres;
-
 	UPROPERTY()
 	TObjectPtr<ADoor> Door;
 
-	int32 InsertedCount = 0;
-	int32 ClaimedCount = 0;
+	UPROPERTY()
+	TObjectPtr<AMinionLife> StoredMinion;
+
+	bool bFilled = false;
+	bool bClaimed = false;
+	bool bRewardClaimed = false;
+	FVector RetrievalSideLocation = FVector::ZeroVector;
 };

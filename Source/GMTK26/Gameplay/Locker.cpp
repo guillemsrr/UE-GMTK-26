@@ -2,81 +2,90 @@
 
 #include "Locker.h"
 
+#include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Door.h"
+#include "Kismet/GameplayStatics.h"
+#include "Player/GMTKPawn.h"
+#include "Player/MinionComponent.h"
 #include "Player/MinionLife.h"
+#include "Rendering/GMTKNeonComponent.h"
 
 ALocker::ALocker()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
+	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+	SetRootComponent(SceneRoot);
+
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
-	SetRootComponent(MeshComponent);
+	MeshComponent->SetCollisionProfileName(TEXT("NoCollision"));
+	MeshComponent->SetupAttachment(SceneRoot);
+
+	NeonLightComponent = CreateDefaultSubobject<UGMTKNeonComponent>(TEXT("NeonLightComponent"));
+	NeonLightComponent->SetupAttachment(MeshComponent);
+	NeonLightComponent->SetRelativeLocation(FVector(0.0f, 0.0f, 140.0f));
+	NeonLightComponent->SetIntensity(2200.0f);
+	NeonLightComponent->SetNeonColor(FLinearColor(0.72f, 0.08f, 1.0f));
 }
 
 void ALocker::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!SocketSphereMesh)
+	NeonLightComponent->ApplyTo(MeshComponent);
+}
+
+FVector ALocker::GetSocketLocation() const
+{
+	return GetActorLocation();
+}
+
+void ALocker::InsertMinion(AMinionLife* Minion)
+{
+	bClaimed = false;
+	bFilled = true;
+	StoredMinion = Minion;
+	RetrievalSideLocation = Minion->GetFollowTarget()->GetActorLocation();
+
+	Minion->StoreAt(GetSocketLocation());
+
+	if (Door)
 	{
-		return;
+		Door->TryOpen();
 	}
 
-	SocketSpheres.Reserve(RequiredMinions);
-	for (int32 Index = 0; Index < RequiredMinions; ++Index)
+	if (!bRewardClaimed)
 	{
-		UStaticMeshComponent* Sphere = NewObject<UStaticMeshComponent>(this);
-		Sphere->SetStaticMesh(SocketSphereMesh);
-		Sphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		Sphere->SetRelativeScale3D(FVector(SocketSphereScale));
-		Sphere->SetupAttachment(MeshComponent);
-		Sphere->RegisterComponent();
-		Sphere->SetWorldLocation(GetSocketLocation(Index));
-
-		SocketSpheres.Add(Sphere);
+		bRewardClaimed = true;
+		Cast<AGMTKPawn>(UGameplayStatics::GetPlayerPawn(this, 0))->GetMinionComponent()->SpawnMinions(
+			this,
+			RewardMinionCount,
+			RewardSpawnRadius,
+		RewardSpawnHeight);
 	}
 }
 
-int32 ALocker::ClaimSocket()
+bool ALocker::RetrieveMinion(AGMTKPawn* Receiver)
 {
-	if (GetFreeSocketCount() <= 0)
+	if (!StoredMinion
+		|| StoredMinion->GetFollowTarget() != Receiver
+		|| (Door && !Door->IsOnSameSide(Receiver, RetrievalSideLocation)))
 	{
-		return INDEX_NONE;
+		return false;
 	}
 
-	const int32 SocketIndex = InsertedCount + ClaimedCount;
-	++ClaimedCount;
+	AMinionLife* Minion = StoredMinion;
+	StoredMinion = nullptr;
+	bFilled = false;
+	bClaimed = false;
 
-	return SocketIndex;
-}
+	Receiver->GetMinionComponent()->RecallStoredMinion(Minion);
 
-void ALocker::ReleaseSocket()
-{
-	ClaimedCount = FMath::Max(0, ClaimedCount - 1);
-}
-
-FVector ALocker::GetSocketLocation(int32 SocketIndex) const
-{
-	const float Offset = (SocketIndex - (RequiredMinions - 1) * 0.5f) * SocketSpacing;
-	return GetActorLocation() + GetActorRightVector() * Offset + FVector(0.0f, 0.0f, SocketHeight);
-}
-
-void ALocker::InsertMinion(AMinionLife* Minion, int32 SocketIndex)
-{
-	if (SocketSpheres.IsValidIndex(SocketIndex) && SocketSpheres[SocketIndex])
+	if (Door)
 	{
-		SocketSpheres[SocketIndex]->DestroyComponent();
-		SocketSpheres[SocketIndex] = nullptr;
+		Door->TryOpen();
 	}
 
-	ClaimedCount = FMath::Max(0, ClaimedCount - 1);
-	++InsertedCount;
-
-	Minion->Destroy();
-
-	if (IsUnlocked() && Door)
-	{
-		Door->Open();
-	}
+	return true;
 }

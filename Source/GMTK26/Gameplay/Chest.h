@@ -4,10 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Templates/SubclassOf.h"
 #include "Chest.generated.h"
 
+class AEnemyPawn;
 class AGMTKPawn;
-class AMinionLife;
+class UGMTKNeonComponent;
 class UStaticMeshComponent;
 
 UCLASS(Abstract)
@@ -23,15 +25,16 @@ public:
 		return bIsOpen;
 	}
 
-	// Spawns the starting minions in a ring around the chest and hands them to the opener. Only pays out once.
 	void Open(AActor* Opener);
 
 protected:
+	virtual void BeginPlay() override;
+
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UStaticMeshComponent> MeshComponent;
 
-	UPROPERTY(EditAnywhere)
-	TSubclassOf<AMinionLife> MinionClass;
+	UPROPERTY(VisibleAnywhere)
+	TObjectPtr<UGMTKNeonComponent> NeonLightComponent;
 
 	UPROPERTY(EditAnywhere)
 	int32 MinionCount = 3;
@@ -43,6 +46,21 @@ protected:
 	UPROPERTY(EditAnywhere)
 	float SpawnHeight = 60.0f;
 
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<AEnemyPawn> EnemyClass;
+
+	UPROPERTY(EditAnywhere)
+	int32 EnemyCount = 0;
+
+	// Outside the minion ring, so the reward is never spawned inside whatever comes out with it.
+	UPROPERTY(EditAnywhere)
+	float EnemySpawnRadius = 260.0f;
+
+	UPROPERTY(EditAnywhere)
+	float EnemySpawnHeight = 0.0f;
+
 private:
 	bool bIsOpen = false;
+
+	void SpawnEnemies();
 };
