@@ -5,24 +5,19 @@
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
 
-#include "GMTKAbility_Interact.generated.h"
-
-class ALocker;
+#include "GMTKAbility_Retrieve.generated.h"
 
 UCLASS()
-class GMTK26_API UGMTKAbility_Interact : public UGameplayAbility
+class GMTK26_API UGMTKAbility_Retrieve : public UGameplayAbility
 {
 	GENERATED_BODY()
 
 public:
-	UGMTKAbility_Interact();
+	UGMTKAbility_Retrieve();
 
 protected:
 	virtual void ActivateAbility(const FGameplayAbilitySpecHandle Handle,
 	                             const FGameplayAbilityActorInfo* ActorInfo,
 	                             const FGameplayAbilityActivationInfo ActivationInfo,
 	                             const FGameplayEventData* TriggerEventData) override;
-
-private:
-	static ALocker* ResolveLocker(AActor* HitActor);
 };
