@@ -54,6 +54,17 @@ void ATutorialTrigger::OnTriggerEndOverlap(UPrimitiveComponent* OverlappedCompon
 	GetGameHUD()->HideTutorial(this);
 }
 
+void ATutorialTrigger::ShowIfPlayerInside()
+{
+	TArray<AActor*> OverlappingActors;
+	TriggerComponent->GetOverlappingActors(OverlappingActors, AGMTKPawn::StaticClass());
+
+	if (!OverlappingActors.IsEmpty())
+	{
+		Show();
+	}
+}
+
 void ATutorialTrigger::Show()
 {
 	GetGameHUD()->ShowTutorial(this, Lines);

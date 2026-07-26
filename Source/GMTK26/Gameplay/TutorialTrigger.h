@@ -19,6 +19,10 @@ protected:
 	ATutorialTrigger();
 	virtual void BeginPlay() override;
 
+public:
+	void ShowIfPlayerInside();
+
+protected:
 	UPROPERTY(VisibleAnywhere)
 	TObjectPtr<UBoxComponent> TriggerComponent;
 
