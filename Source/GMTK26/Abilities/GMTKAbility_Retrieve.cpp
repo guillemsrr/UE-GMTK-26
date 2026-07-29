@@ -22,7 +22,11 @@ void UGMTKAbility_Retrieve::ActivateAbility(const FGameplayAbilitySpecHandle Han
 		return;
 	}
 
-	Cast<AGMTKPawn>(ActorInfo->AvatarActor.Get())->RetrieveMinions();
+	if (!Cast<AGMTKPawn>(ActorInfo->AvatarActor.Get())->RetrieveNearestOrb())
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
 
 	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
 }

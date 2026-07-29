@@ -27,7 +27,7 @@ void UGMTKAbility_Deploy::ActivateAbility(const FGameplayAbilitySpecHandle Handl
 	ActorInfo->PlayerController->GetHitResultUnderCursor(ECC_Visibility, false, Hit);
 
 	AGMTKPawn* Pawn = Cast<AGMTKPawn>(ActorInfo->AvatarActor.Get());
-	if (!Hit.bBlockingHit || !Pawn->DeployMinion(Hit.ImpactPoint))
+	if (!Hit.bBlockingHit || !Pawn->DeployOrb(Hit.ImpactPoint))
 	{
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
